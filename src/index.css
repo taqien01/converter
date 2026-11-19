@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-sans: "Archivo", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-panel: var(--panel);
+  --color-plate: var(--plate);
+  --color-ink: var(--ink);
+  --color-dim: var(--dim);
+  --color-rule: var(--rule);
+  --color-cobalt: var(--cobalt);
+  --color-amber: var(--amber);
+  --color-fault: var(--fault);
+  --color-led-off: var(--led-off);
+}
+
+/* Brushed-aluminium bench, cobalt hardware labels, amber signal LEDs. */
+:root {
+  --panel: #dde1e4;
+  --plate: #eef1f3;
+  --ink: #121419;
+  --dim: #5b636d;
+  --rule: #b6bec6;
+  --cobalt: #2340e8;
+  --amber: #f2a900;
+  --fault: #d42a2a;
+  --led-off: #c7cdd3;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --panel: #15181d;
+    --plate: #1d2128;
+    --ink: #e7eaee;
+    --dim: #8f98a3;
+    --rule: #333a44;
+    --cobalt: #7088ff;
+    --amber: #ffb81c;
+    --fault: #ff5b5b;
+    --led-off: #2a3039;
+    color-scheme: dark;
+  }
+}
+
+body {
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-variation-settings: "wdth" 100;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wide {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 125;
+}
+
+.condensed {
+  font-variation-settings: "wdth" 75;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+.led {
+  transition: background-color 120ms linear;
+}
+
+.led-on-run {
+  background: var(--amber);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--amber) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .led {
+    transition: none;
+  }
+}
