@@ -1,11 +1,12 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
-import { extOf, targetByExt } from "./formats";
+import { extOf, kindOf, targetByExt } from "./formats";
+import { convertImage } from "./imageEncoder";
 
 export type Settings = {
   bitrate: number; // kbps, lossy audio
   height: number; // 0 = keep original, video only
-  quality: number; // 0.1–1, jpg/webp
+  quality: number; // 0.1–1, jpg/webp/avif
 };
 
 export class Cancelled extends Error {
@@ -102,6 +103,17 @@ function ffmpegArgs(target: string, s: Settings): string[] {
       const h = s.height ? Math.min(s.height, 480) : 480;
       return ["-vf", `fps=12,scale=-1:'min(${h},ih)':flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse`, "-loop", "0"];
     }
+    // Image fallback targets for ffmpeg
+    case "jpg":
+    case "jpeg":
+      return ["-q:v", "2"];
+    case "png":
+    case "bmp":
+    case "tiff":
+    case "tif":
+      return [];
+    case "webp":
+      return ["-quality", `${Math.round(s.quality * 100)}`];
     default:
       throw new Error(`No recipe for ${target}`);
   }
@@ -154,34 +166,23 @@ function explain(log: string[], target: string): string {
   return last ? `Conversion failed: ${last.trim()}` : "Conversion failed.";
 }
 
-async function runCanvas(file: File, target: string, s: Settings): Promise<Blob> {
-  const t = targetByExt(target);
-  const bitmap = await createImageBitmap(file).catch(() => {
-    throw new Error("This browser can't read this image format.");
-  });
-  const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext("2d")!;
-  if (target === "jpg") {
-    // JPG has no transparency; paint white instead of letting it go black.
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, t.mime, t.quality ? s.quality : undefined));
-  if (!blob || blob.type !== t.mime) throw new Error(`This browser can't write ${t.label}.`);
-  return blob;
-}
-
 export async function convert(file: File, target: string, s: Settings, progress: (p: number) => void): Promise<Blob> {
-  if (targetByExt(target).kind === "image") {
-    progress(0.5);
-    const b = await runCanvas(file, target, s);
-    progress(1);
-    return b;
+  const srcKind = kindOf(file);
+  const t = targetByExt(target, srcKind === "image" ? "image" : undefined);
+
+  if (t.kind === "image") {
+    progress(0.3);
+    try {
+      const b = await convertImage(file, target, t, s);
+      progress(1);
+      return b;
+    } catch (canvasErr) {
+      // If canvas failed (e.g. format requires ffmpeg or browser canvas limitation), try ffmpeg
+      console.warn("Canvas conversion failed, attempting FFmpeg fallback:", canvasErr);
+      return runFfmpeg(file, target, s, progress);
+    }
   }
+
   if (file.size > MAX_BYTES) throw new Error("Files over 1.5 GB are too large to convert in a browser tab.");
   return runFfmpeg(file, target, s, progress);
 }

@@ -7,35 +7,48 @@ export type Target = {
   mime: string;
   /** Lossy audio formats take a bitrate. */
   bitrate?: boolean;
-  /** Image formats encoded by the browser take a quality value. */
+  /** Image formats encoded with quality take a quality value. */
   quality?: boolean;
   note: string;
 };
 
-export const TARGETS: Target[] = [
+export const AUDIO_TARGETS: Target[] = [
   { ext: "mp3", label: "MP3", kind: "audio", mime: "audio/mpeg", bitrate: true, note: "Plays everywhere" },
   { ext: "m4a", label: "M4A", kind: "audio", mime: "audio/mp4", bitrate: true, note: "AAC, Apple devices" },
   { ext: "wav", label: "WAV", kind: "audio", mime: "audio/wav", note: "Uncompressed, large" },
   { ext: "flac", label: "FLAC", kind: "audio", mime: "audio/flac", note: "Lossless, smaller than WAV" },
   { ext: "ogg", label: "OGG", kind: "audio", mime: "audio/ogg", bitrate: true, note: "Vorbis" },
   { ext: "opus", label: "OPUS", kind: "audio", mime: "audio/ogg", bitrate: true, note: "Best quality per KB" },
+];
 
+export const VIDEO_TARGETS: Target[] = [
   { ext: "mp4", label: "MP4", kind: "video", mime: "video/mp4", note: "H.264, plays everywhere" },
   { ext: "webm", label: "WEBM", kind: "video", mime: "video/webm", note: "VP8, for the web — slow" },
   { ext: "mov", label: "MOV", kind: "video", mime: "video/quicktime", note: "H.264 in QuickTime" },
   { ext: "mkv", label: "MKV", kind: "video", mime: "video/x-matroska", note: "Repackaged, no re-encode" },
   { ext: "avi", label: "AVI", kind: "video", mime: "video/x-msvideo", note: "MPEG-4, older players" },
-  { ext: "gif", label: "GIF", kind: "video", mime: "image/gif", note: "Animated, 12 fps, 480 px" },
-
-  { ext: "png", label: "PNG", kind: "image", mime: "image/png", note: "Lossless, keeps transparency" },
-  { ext: "jpg", label: "JPG", kind: "image", mime: "image/jpeg", quality: true, note: "Small, no transparency" },
-  { ext: "webp", label: "WEBP", kind: "image", mime: "image/webp", quality: true, note: "Small, keeps transparency" },
+  { ext: "gif", label: "GIF (Video)", kind: "video", mime: "image/gif", note: "Animated, 12 fps, 480 px" },
 ];
 
-const VIDEO_EXT = ["mp4", "mov", "mkv", "webm", "avi", "m4v", "flv", "wmv", "3gp", "mpg", "mpeg", "ts", "mts"];
-const AUDIO_EXT = ["mp3", "wav", "m4a", "aac", "flac", "ogg", "oga", "opus", "wma", "aiff", "aif", "amr"];
-const IMAGE_EXT = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif", "svg", "ico", "tif", "tiff"];
+export const IMAGE_TARGETS: Target[] = [
+  { ext: "jpg", label: "JPG", kind: "image", mime: "image/jpeg", quality: true, note: "Small, universally supported" },
+  { ext: "png", label: "PNG", kind: "image", mime: "image/png", note: "Lossless, preserves transparency" },
+  { ext: "webp", label: "WEBP", kind: "image", mime: "image/webp", quality: true, note: "Modern web, high compression" },
+  { ext: "avif", label: "AVIF", kind: "image", mime: "image/avif", quality: true, note: "Next-gen, ultra high efficiency" },
+  { ext: "bmp", label: "BMP", kind: "image", mime: "image/bmp", note: "Uncompressed Windows bitmap" },
+  { ext: "ico", label: "ICO", kind: "image", mime: "image/x-icon", note: "Favicon / Windows application icon" },
+  { ext: "tiff", label: "TIFF", kind: "image", mime: "image/tiff", note: "Lossless, photography & archival" },
+  { ext: "gif", label: "GIF", kind: "image", mime: "image/gif", note: "Standard 256-color web format" },
+];
 
+export const TARGETS: Target[] = [...AUDIO_TARGETS, ...VIDEO_TARGETS, ...IMAGE_TARGETS];
+
+export const VIDEO_EXT = ["mp4", "mov", "mkv", "webm", "avi", "m4v", "flv", "wmv", "3gp", "mpg", "mpeg", "ts", "mts"];
+export const AUDIO_EXT = ["mp3", "wav", "m4a", "aac", "flac", "ogg", "oga", "opus", "wma", "aiff", "aif", "amr"];
+export const IMAGE_EXT = ["png", "jpg", "jpeg", "webp", "avif", "gif", "bmp", "ico", "tif", "tiff", "svg", "heic", "heif"];
+
+export const VIDEO_ACCEPT = [...VIDEO_EXT, ...AUDIO_EXT].map((e) => "." + e).join(",") + ",video/*,audio/*";
+export const IMAGE_ACCEPT = IMAGE_EXT.map((e) => "." + e).join(",") + ",image/*";
 export const ACCEPT = [...VIDEO_EXT, ...AUDIO_EXT, ...IMAGE_EXT].map((e) => "." + e).join(",") + ",video/*,audio/*,image/*";
 
 export function extOf(name: string): string {
@@ -55,20 +68,37 @@ export function kindOf(file: File): Kind | null {
 
 /** Which targets a source kind can become. Video can drop its picture to become audio. */
 export function targetsFor(kind: Kind): Target[] {
-  if (kind === "video") return TARGETS.filter((t) => t.kind === "video" || t.kind === "audio");
-  return TARGETS.filter((t) => t.kind === kind);
+  if (kind === "video") return [...AUDIO_TARGETS, ...VIDEO_TARGETS];
+  if (kind === "audio") return AUDIO_TARGETS;
+  if (kind === "image") return IMAGE_TARGETS;
+  return [];
 }
 
 export function defaultTarget(kind: Kind, srcExt: string): string {
   if (kind === "video") return "mp3";
   if (kind === "audio") return srcExt === "mp3" ? "m4a" : "mp3";
-  return srcExt === "png" ? "jpg" : "png";
+  if (kind === "image") {
+    const ext = srcExt.toLowerCase();
+    if (ext === "webp") return "jpg";
+    if (ext === "png") return "jpg";
+    if (ext === "jpg" || ext === "jpeg") return "webp";
+    if (ext === "svg") return "png";
+    if (ext === "avif") return "jpg";
+    if (ext === "bmp" || ext === "ico" || ext === "tif" || ext === "tiff") return "png";
+    return "jpg";
+  }
+  return "mp3";
 }
 
-export function targetByExt(ext: string): Target {
-  const t = TARGETS.find((t) => t.ext === ext);
-  if (!t) throw new Error(`Unknown format ${ext}`);
-  return t;
+export function targetByExt(ext: string, kind?: Kind): Target {
+  const cleanExt = ext.toLowerCase();
+  if (kind) {
+    const match = TARGETS.find((t) => t.ext === cleanExt && t.kind === kind);
+    if (match) return match;
+  }
+  const match = TARGETS.find((t) => t.ext === cleanExt);
+  if (!match) throw new Error(`Unknown format ${ext}`);
+  return match;
 }
 
 export const BITRATES = [128, 192, 256, 320] as const;

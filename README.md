@@ -2,10 +2,19 @@
 
 Converts video, audio and images entirely in the browser. Nothing is uploaded.
 
-- **Video → audio:** MP3, M4A, WAV, FLAC, OGG, OPUS (bitrate 128–320k)
-- **Video → video:** MP4, WEBM, MOV, MKV, AVI, GIF (optional 1080p/720p/480p downscale)
-- **Audio → audio:** same audio formats
-- **Image → image:** PNG, JPG, WEBP (quality slider)
+## Pages and Navigation
+
+- **`/` (Home Menu):** Select tool hub to choose between Video Converter and Image Converter.
+- **`/video` (Video & Audio Converter):**
+  - **Video → audio:** MP3, M4A, WAV, FLAC, OGG, OPUS (bitrate 128–320k)
+  - **Video → video:** MP4, WEBM, MOV, MKV, AVI, GIF (optional 1080p/720p/480p downscale)
+  - **Audio → audio:** same audio formats
+- **`/image` (Image Converter):**
+  - **Any image → any image:** WEBP, JPG, PNG, AVIF, BMP, ICO, TIFF, GIF
+  - Source formats supported: PNG, JPG, JPEG, WEBP, AVIF, GIF, BMP, ICO, TIFF, SVG, etc.
+  - Quality slider for lossy formats (JPG, WEBP, AVIF)
+  - Instant client-side conversion (hardware-accelerated Canvas & pure JS encoders, no wasm download needed)
+- **Mode Dropdown:** Dropdown switcher present in the header and view bar on each path to instantly jump between Video Converter, Image Converter, and the Home Menu.
 
 Batch queue, per-file target, "convert all to", download one or all as a zip, drag-and-drop or paste.
 
@@ -126,11 +135,12 @@ bunx wrangler rollback <VERSION_ID>
 
 - Video/audio use [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) (single-thread core),
   loaded the first time a media file is queued. Recipes live in `src/engine.ts`.
-- Images are re-encoded with `<canvas>` (fast, no engine needed).
-- Formats and which source can become which target: `src/formats.ts`.
+- Images are decoded and converted with hardware-accelerated Canvas, pure JS BMP/ICO/TIFF encoders,
+  and native format export (instant, offline, no wasm download needed).
+- Formats and targets: `src/formats.ts`.
 
 ## Limits
 
-- Files over 1.5 GB are refused (browser wasm memory cap).
+- Video/audio files over 1.5 GB are refused (browser wasm memory cap).
 - Single-thread wasm is several times slower than native ffmpeg; MP3 extraction is fast,
   re-encoding long video to WEBM is slow.
